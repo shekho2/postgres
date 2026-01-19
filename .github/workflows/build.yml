@@ -8,7 +8,15 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: x64
+          - os: ubuntu-latest-arm64
+            arch: arm64
     
     permissions:
       contents: read
@@ -81,13 +89,14 @@ jobs:
         
         # Create version info
         echo "PostgreSQL $PG_VERSION" > artifacts/VERSION
+        echo "Architecture: ${{ matrix.arch }}" >> artifacts/VERSION
         echo "Built on: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> artifacts/VERSION
         echo "Commit: ${{ github.sha }}" >> artifacts/VERSION
         
     - name: Upload binaries as artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: postgresql-binaries-${{ github.sha }}
+        name: postgresql-binaries-${{ matrix.arch }}-${{ github.sha }}
         path: artifacts/
         retention-days: 90
         
@@ -95,13 +104,13 @@ jobs:
       if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
       run: |
         cd artifacts
-        tar -czf postgresql-binaries-linux-x64.tar.gz bin/ lib/ VERSION
+        tar -czf postgresql-binaries-linux-${{ matrix.arch }}.tar.gz bin/ lib/ VERSION
         cd ..
         
     - name: Upload to GitHub Packages (Releases)
       if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
       uses: actions/upload-artifact@v4
       with:
-        name: postgresql-binaries-release-${{ github.run_number }}
-        path: artifacts/postgresql-binaries-linux-x64.tar.gz
+        name: postgresql-binaries-release-${{ matrix.arch }}-${{ github.run_number }}
+        path: artifacts/postgresql-binaries-linux-${{ matrix.arch }}.tar.gz
         retention-days: 365
