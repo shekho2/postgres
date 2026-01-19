@@ -12,6 +12,7 @@ jobs:
     
     permissions:
       contents: read
+      packages: write
     
     steps:
     - name: Checkout code
@@ -51,3 +52,44 @@ jobs:
     - name: Run tests
       run: |
         meson test -C build --print-errorlogs --suite setup
+        
+    - name: Package binaries
+      run: |
+        mkdir -p artifacts/bin
+        mkdir -p artifacts/lib
+        
+        # Copy main postgres binary
+        cp build/src/backend/postgres artifacts/bin/
+        
+        # Copy all utilities from src/bin
+        find build/src/bin -type f -executable -not -name "*.so" -not -name "*.a" -exec cp {} artifacts/bin/ \; 2>/dev/null || true
+        
+        # Copy shared libraries
+        find build/src -name "*.so*" -exec cp {} artifacts/lib/ \; 2>/dev/null || true
+        
+        # Create version info
+        echo "PostgreSQL 19devel" > artifacts/VERSION
+        echo "Built on: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> artifacts/VERSION
+        echo "Commit: ${{ github.sha }}" >> artifacts/VERSION
+        
+    - name: Upload binaries as artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: postgresql-binaries-${{ github.sha }}
+        path: artifacts/
+        retention-days: 90
+        
+    - name: Create tarball for GitHub Packages
+      if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+      run: |
+        cd artifacts
+        tar -czf postgresql-binaries-linux-x64.tar.gz bin/ lib/ VERSION
+        cd ..
+        
+    - name: Upload to GitHub Packages (Releases)
+      if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+      uses: actions/upload-artifact@v4
+      with:
+        name: postgresql-binaries-release-${{ github.run_number }}
+        path: artifacts/postgresql-binaries-linux-x64.tar.gz
+        retention-days: 365
