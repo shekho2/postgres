@@ -42,7 +42,7 @@ jobs:
           
     - name: Build PostgreSQL
       run: |
-        ninja -C build -j$(nproc)
+        ninja -C build -j4
         
     - name: Run tests
       run: |
