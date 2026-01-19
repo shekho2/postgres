@@ -1,0 +1,49 @@
+name: Build PostgreSQL
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          meson \
+          ninja-build \
+          build-essential \
+          libreadline-dev \
+          zlib1g-dev \
+          flex \
+          bison \
+          libxml2-dev \
+          libxslt1-dev \
+          libssl-dev \
+          libicu-dev \
+          pkg-config
+          
+    - name: Configure PostgreSQL
+      run: |
+        meson setup \
+          --buildtype=debug \
+          --auto-features=disabled \
+          -Dcassert=true \
+          -Dtap_tests=enabled \
+          build
+          
+    - name: Build PostgreSQL
+      run: |
+        ninja -C build -j$(nproc)
+        
+    - name: Run tests
+      run: |
+        meson test -C build --print-errorlogs --suite setup
