@@ -59,7 +59,12 @@ jobs:
         mkdir -p artifacts/lib
         
         # Copy main postgres binary
-        cp build/src/backend/postgres artifacts/bin/
+        if [ -f "build/src/backend/postgres" ]; then
+          cp build/src/backend/postgres artifacts/bin/
+        else
+          echo "Error: postgres binary not found at build/src/backend/postgres"
+          exit 1
+        fi
         
         # Copy all utilities from src/bin
         if [ -d "build/src/bin" ]; then
@@ -71,8 +76,11 @@ jobs:
           find build/src \( -name "*.so" -o -name "*.so.[0-9]*" \) -exec cp {} artifacts/lib/ \;
         fi
         
+        # Extract version from configure.ac
+        PG_VERSION=$(grep -oP "AC_INIT\(\[PostgreSQL\], \[\K[^\]]*" configure.ac || echo "unknown")
+        
         # Create version info
-        echo "PostgreSQL 19devel" > artifacts/VERSION
+        echo "PostgreSQL $PG_VERSION" > artifacts/VERSION
         echo "Built on: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> artifacts/VERSION
         echo "Commit: ${{ github.sha }}" >> artifacts/VERSION
         
