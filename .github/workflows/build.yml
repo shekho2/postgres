@@ -62,10 +62,14 @@ jobs:
         cp build/src/backend/postgres artifacts/bin/
         
         # Copy all utilities from src/bin
-        find build/src/bin -type f -executable -not -name "*.so" -not -name "*.a" -exec cp {} artifacts/bin/ \; 2>/dev/null || true
+        if [ -d "build/src/bin" ]; then
+          find build/src/bin -type f -executable -not -name "*.so" -not -name "*.a" -exec cp {} artifacts/bin/ \;
+        fi
         
         # Copy shared libraries
-        find build/src -name "*.so*" -exec cp {} artifacts/lib/ \; 2>/dev/null || true
+        if [ -d "build/src" ]; then
+          find build/src \( -name "*.so" -o -name "*.so.[0-9]*" \) -exec cp {} artifacts/lib/ \;
+        fi
         
         # Create version info
         echo "PostgreSQL 19devel" > artifacts/VERSION
