@@ -32,7 +32,8 @@ jobs:
           libxslt1-dev \
           libssl-dev \
           libicu-dev \
-          pkg-config
+          pkg-config \
+          libipc-run-perl
           
     - name: Configure PostgreSQL
       run: |
