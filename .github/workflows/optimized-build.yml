@@ -154,13 +154,7 @@ jobs:
         # Apply BOLT to the postgres binary for final optimization
         POSTGRES_BIN=./build-optimized/tmp_install/usr/local/pgsql/bin/postgres
         
-        # Check if llvm-bolt is available
-        if ! command -v llvm-bolt-18 &> /dev/null && ! command -v llvm-bolt &> /dev/null; then
-          echo "BOLT not available, skipping BOLT optimization"
-          exit 0
-        fi
-        
-        # Determine which BOLT command to use
+        # Determine which BOLT command to use (if available)
         BOLT_CMD=""
         if command -v llvm-bolt-18 &> /dev/null; then
           BOLT_CMD="llvm-bolt-18"
@@ -168,7 +162,10 @@ jobs:
           BOLT_CMD="llvm-bolt"
         fi
         
-        if [ -f "$POSTGRES_BIN" ] && [ -n "$BOLT_CMD" ]; then
+        # Apply BOLT if available
+        if [ -z "$BOLT_CMD" ]; then
+          echo "BOLT not available, skipping BOLT optimization"
+        elif [ -f "$POSTGRES_BIN" ]; then
           # Create BOLT-optimized binary
           # Note: BOLT requires the binary to have been built with relocations
           $BOLT_CMD "$POSTGRES_BIN" \
