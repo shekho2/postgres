@@ -19,3 +19,10 @@ about building PostgreSQL from the source code can be found at
 The latest version of this software, and related software, may be
 obtained at <https://www.postgresql.org/download/>.  For more information
 look at our web site located at <https://www.postgresql.org/>.
+
+Optimized Builds
+----------------
+
+This repository includes an optimized build pipeline that uses AutoFDO,
+ThinLTO, and BOLT for enhanced performance. See OPTIMIZED_BUILD.md for
+details on the optimization techniques and CI/CD integration.
