@@ -30,6 +30,7 @@ jobs:
           lld-18 \
           llvm-18 \
           llvm-18-dev \
+          bolt-18 \
           meson \
           ninja-build \
           build-essential \
@@ -50,7 +51,9 @@ jobs:
         sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-18 100
         sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-18 100
         sudo update-alternatives --install /usr/bin/llvm-profdata llvm-profdata /usr/bin/llvm-profdata-18 100
-        sudo update-alternatives --install /usr/bin/llvm-bolt llvm-bolt /usr/bin/llvm-bolt-18 100
+        if [ -f /usr/bin/llvm-bolt-18 ]; then
+          sudo update-alternatives --install /usr/bin/llvm-bolt llvm-bolt /usr/bin/llvm-bolt-18 100
+        fi
         sudo update-alternatives --install /usr/bin/ld.lld ld.lld /usr/bin/ld.lld-18 100
         
     - name: Install AutoFDO tools
@@ -151,10 +154,24 @@ jobs:
         # Apply BOLT to the postgres binary for final optimization
         POSTGRES_BIN=./build-optimized/tmp_install/usr/local/pgsql/bin/postgres
         
-        if [ -f "$POSTGRES_BIN" ]; then
+        # Check if llvm-bolt is available
+        if ! command -v llvm-bolt-18 &> /dev/null && ! command -v llvm-bolt &> /dev/null; then
+          echo "BOLT not available, skipping BOLT optimization"
+          exit 0
+        fi
+        
+        # Determine which BOLT command to use
+        BOLT_CMD=""
+        if command -v llvm-bolt-18 &> /dev/null; then
+          BOLT_CMD="llvm-bolt-18"
+        elif command -v llvm-bolt &> /dev/null; then
+          BOLT_CMD="llvm-bolt"
+        fi
+        
+        if [ -f "$POSTGRES_BIN" ] && [ -n "$BOLT_CMD" ]; then
           # Create BOLT-optimized binary
           # Note: BOLT requires the binary to have been built with relocations
-          llvm-bolt-18 "$POSTGRES_BIN" \
+          $BOLT_CMD "$POSTGRES_BIN" \
             -o "${POSTGRES_BIN}.bolt" \
             -reorder-blocks=ext-tsp \
             -reorder-functions=hfsort+ \
