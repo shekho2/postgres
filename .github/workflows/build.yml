@@ -8,10 +8,19 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: x64
+          - os: ubuntu-latest-arm64
+            arch: arm64
     
     permissions:
       contents: read
+      packages: write
     
     steps:
     - name: Checkout code
@@ -51,3 +60,57 @@ jobs:
     - name: Run tests
       run: |
         meson test -C build --print-errorlogs --suite setup
+        
+    - name: Package binaries
+      run: |
+        mkdir -p artifacts/bin
+        mkdir -p artifacts/lib
+        
+        # Copy main postgres binary
+        if [ -f "build/src/backend/postgres" ]; then
+          cp build/src/backend/postgres artifacts/bin/
+        else
+          echo "Error: postgres binary not found at build/src/backend/postgres"
+          exit 1
+        fi
+        
+        # Copy all utilities from src/bin
+        if [ -d "build/src/bin" ]; then
+          find build/src/bin -type f -executable -not -name "*.so" -not -name "*.a" -exec cp {} artifacts/bin/ \;
+        fi
+        
+        # Copy shared libraries
+        if [ -d "build/src" ]; then
+          find build/src \( -name "*.so" -o -name "*.so.[0-9]*" \) -exec cp {} artifacts/lib/ \;
+        fi
+        
+        # Extract version from configure.ac
+        PG_VERSION=$(grep -oP "AC_INIT\(\[PostgreSQL\], \[\K[^\]]*" configure.ac || echo "unknown")
+        
+        # Create version info
+        echo "PostgreSQL $PG_VERSION" > artifacts/VERSION
+        echo "Architecture: ${{ matrix.arch }}" >> artifacts/VERSION
+        echo "Built on: $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> artifacts/VERSION
+        echo "Commit: ${{ github.sha }}" >> artifacts/VERSION
+        
+    - name: Upload binaries as artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: postgresql-binaries-${{ matrix.arch }}-${{ github.sha }}
+        path: artifacts/
+        retention-days: 90
+        
+    - name: Create tarball for GitHub Packages
+      if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+      run: |
+        cd artifacts
+        tar -czf postgresql-binaries-linux-${{ matrix.arch }}.tar.gz bin/ lib/ VERSION
+        cd ..
+        
+    - name: Upload to GitHub Packages (Releases)
+      if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+      uses: actions/upload-artifact@v4
+      with:
+        name: postgresql-binaries-release-${{ matrix.arch }}-${{ github.run_number }}
+        path: artifacts/postgresql-binaries-linux-${{ matrix.arch }}.tar.gz
+        retention-days: 365
