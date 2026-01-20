@@ -78,6 +78,7 @@ jobs:
     - name: Build PostgreSQL (Initial ThinLTO build)
       run: |
         ninja -C build-profile -j$(nproc)
+        ninja -C build-profile install
         
     - name: Initialize database for profiling
       run: |
@@ -126,12 +127,9 @@ jobs:
         rm -rf build-optimized
         
         # Build with AutoFDO profile and ThinLTO
-        export CFLAGS="-flto=thin -fuse-ld=lld"
-        export LDFLAGS="-flto=thin -fuse-ld=lld -Wl,--lto-whole-program-visibility"
-        
         # Add AutoFDO profile if available
         if [ -f /tmp/postgres.afdo ]; then
-          export CFLAGS="$CFLAGS -fprofile-sample-use=/tmp/postgres.afdo"
+          export CFLAGS="-fprofile-sample-use=/tmp/postgres.afdo"
         fi
         
         CC=clang-18 CXX=clang++-18 meson setup \
@@ -146,6 +144,7 @@ jobs:
     - name: Build PostgreSQL (AutoFDO + ThinLTO build)
       run: |
         ninja -C build-optimized -j$(nproc)
+        ninja -C build-optimized install
         
     - name: Apply BOLT optimization
       run: |
