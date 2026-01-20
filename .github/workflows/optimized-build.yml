@@ -45,7 +45,9 @@ jobs:
           pkg-config \
           libipc-run-perl \
           linux-tools-common \
-          linux-tools-generic
+          linux-tools-generic \
+          libprotobuf-dev \
+          protobuf-compiler
         
         # Set up compiler environment
         sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-18 100
